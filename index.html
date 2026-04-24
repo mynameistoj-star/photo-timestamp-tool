@@ -445,10 +445,10 @@
                 <div class="setting-options">
                     <div class="option">
                         <input type="checkbox" id="autoCropTimestamp" checked>
-                        <label for="autoCropTimestamp" style="margin: 0; font-weight: normal;">自動偵測並裁切舊時間戳</label>
+                        <label for="autoCropTimestamp" style="margin: 0; font-weight: normal;">自動裁切舊時間戳（頂部）</label>
                     </div>
                 </div>
-                <p style="font-size: 12px; color: #666; margin-top: 8px;">若照片含有現有時間戳，將自動裁掉頂部以去除舊時間戳</p>
+                <p style="font-size: 12px; color: #666; margin-top: 8px;">勾選時會自動裁掉圖片頂部約 4%，用於移除舊時間戳</p>
             </div>
         </div>
 
@@ -756,29 +756,6 @@
                 }
             },
 
-            detectTimestampInImage(img) {
-                // 簡單的白色像素檢測
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const regionHeight = Math.floor(img.height * 0.08);
-
-                canvas.width = img.width;
-                canvas.height = regionHeight;
-                ctx.drawImage(img, 0, 0, img.width, regionHeight, 0, 0, img.width, regionHeight);
-
-                const imageData = ctx.getImageData(Math.floor(img.width * 0.5), 0, Math.floor(img.width * 0.5), regionHeight);
-                const data = imageData.data;
-
-                let brightPixels = 0;
-                for (let i = 0; i < data.length; i += 4) {
-                    const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
-                    if (brightness > 200) brightPixels++;
-                }
-
-                const ratio = brightPixels / (data.length / 4);
-                return ratio > 0.05;
-            },
-
             async processImage(imgData, settings) {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
@@ -786,12 +763,11 @@
 
                 return new Promise((resolve, reject) => {
                     img.onload = () => {
-                        let processImg = img;
                         let cropHeight = 0;
 
-                        // 檢測並裁切舊時間戳
+                        // 如果勾選，直接裁切頂部
                         const autoCrop = document.getElementById('autoCropTimestamp').checked;
-                        if (autoCrop && this.detectTimestampInImage(img)) {
+                        if (autoCrop) {
                             cropHeight = Math.max(50, Math.floor(img.height * 0.04));
                         }
 
