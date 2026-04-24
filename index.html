@@ -342,7 +342,6 @@
     <div class="container">
         <h1>📸 照片時間戳工具</h1>
 
-        <!-- 拖曳區域 -->
         <div class="drop-zone" id="dropZone">
             <div class="drop-zone-icon">📁</div>
             <div class="drop-zone-text">
@@ -352,19 +351,15 @@
             <input type="file" id="fileInput" multiple accept="image/*">
         </div>
 
-        <!-- 圖片列表 -->
         <div class="image-list" id="imageList"></div>
 
-        <!-- 處理模式選擇 -->
         <div class="mode-selector" id="modeSelector" style="display: none;">
             <p style="margin-bottom: 10px; color: #666;">多張照片 - 選擇處理模式：</p>
             <button class="btn-secondary active" data-mode="batch">統一套用設定</button>
             <button class="btn-secondary" data-mode="individual">逐張確認</button>
         </div>
 
-        <!-- 設定面板 -->
         <div class="settings">
-            <!-- 時間選擇 -->
             <div class="setting-group">
                 <label>時間選擇</label>
                 <div class="setting-options">
@@ -382,7 +377,6 @@
                 </div>
             </div>
 
-            <!-- 時間格式 -->
             <div class="setting-group">
                 <label>時間戳格式</label>
                 <div class="setting-options">
@@ -397,7 +391,6 @@
                 </div>
             </div>
 
-            <!-- 位置選擇 -->
             <div class="setting-group">
                 <label>時間戳位置</label>
                 <div class="setting-options">
@@ -420,7 +413,6 @@
                 </div>
             </div>
 
-            <!-- 字色選擇 -->
             <div class="setting-group">
                 <label>字色</label>
                 <div class="setting-options">
@@ -439,29 +431,29 @@
                 </div>
             </div>
 
-            <!-- 裁切選項 -->
             <div class="setting-group">
                 <label>現有時間戳處理</label>
                 <div class="setting-options">
                     <div class="option">
                         <input type="checkbox" id="autoCropTimestamp" checked>
-                        <label for="autoCropTimestamp" style="margin: 0; font-weight: normal;">自動裁切舊時間戳（頂部）</label>
+                        <label for="autoCropTimestamp" style="margin: 0; font-weight: normal;">自動裁切舊時間戳</label>
                     </div>
                 </div>
-                <p style="font-size: 12px; color: #666; margin-top: 8px;">勾選時會自動裁掉圖片頂部約 4%，用於移除舊時間戳</p>
+                <div style="margin-top: 10px;">
+                    <label for="cropPixels" style="font-size: 12px; color: #666;">裁切像素數：</label>
+                    <input type="number" id="cropPixels" value="50" min="0" max="500" style="width: 80px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                    <span style="font-size: 12px; color: #666; margin-left: 5px;">px（0 = 不裁切）</span>
+                </div>
             </div>
         </div>
 
-        <!-- 預覽 Canvas -->
         <div class="preview-canvas-container" id="previewContainer">
             <h3>預覽</h3>
             <canvas id="previewCanvas" class="preview-canvas"></canvas>
         </div>
 
-        <!-- 狀態訊息 -->
         <div class="status" id="status"></div>
 
-        <!-- 操作按鈕 -->
         <div class="action-buttons">
             <button class="btn-secondary" id="clearBtn" style="display: none;">清除全部</button>
             <button class="btn-primary" id="previewBtn" style="display: none;">預覽</button>
@@ -490,7 +482,6 @@
                 const processBtn = document.getElementById('processBtn');
                 const modeSelector = document.getElementById('modeSelector');
 
-                // 拖曳
                 dropZone.addEventListener('click', () => fileInput.click());
                 dropZone.addEventListener('dragover', (e) => {
                     e.preventDefault();
@@ -503,25 +494,20 @@
                     this.handleFiles(e.dataTransfer.files);
                 });
 
-                // 檔案選擇
                 fileInput.addEventListener('change', (e) => this.handleFiles(e.target.files));
 
-                // 時間模式
                 useCurrentTime.addEventListener('change', () => this.updateCustomTimeInput());
                 useCustomTime.addEventListener('change', () => this.updateCustomTimeInput());
                 customTime.addEventListener('change', () => this.updatePreview());
 
-                // 格式、位置、字色變更 → 更新預覽
                 document.querySelectorAll('input[name="format"], input[name="position"], input[name="textColor"]').forEach(el => {
                     el.addEventListener('change', () => this.updatePreview());
                 });
 
-                // 清除、預覽、處理按鈕
                 clearBtn.addEventListener('click', () => this.clearImages());
                 previewBtn.addEventListener('click', () => this.updatePreview());
                 processBtn.addEventListener('click', () => this.processImages());
 
-                // 模式選擇
                 modeSelector.querySelectorAll('button').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         modeSelector.querySelectorAll('button').forEach(b => b.classList.remove('active'));
@@ -648,9 +634,20 @@
 
                 const img = new Image();
                 img.onload = () => {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
+                    let cropHeight = 0;
+                    const autoCrop = document.getElementById('autoCropTimestamp').checked;
+                    if (autoCrop) {
+                        const cropPixels = parseInt(document.getElementById('cropPixels').value) || 0;
+                        cropHeight = cropPixels;
+                    }
+
+                    const finalWidth = img.width;
+                    const finalHeight = img.height - cropHeight;
+
+                    canvas.width = finalWidth;
+                    canvas.height = finalHeight;
+
+                    ctx.drawImage(img, 0, cropHeight, finalWidth, finalHeight, 0, 0, finalWidth, finalHeight);
 
                     const text = this.formatTimestamp(settings.dt, settings.format);
                     const fontSize = Math.max(16, Math.floor(img.width * 0.025));
@@ -658,12 +655,10 @@
 
                     ctx.font = `bold ${fontSize}px Arial, "Microsoft YaHei"`;
 
-                    // 計算文字大小
                     const metrics = ctx.measureText(text);
                     const textWidth = metrics.width;
                     const textHeight = fontSize;
 
-                    // 計算位置
                     let x, y;
                     switch (settings.position) {
                         case 'top-right':
@@ -684,7 +679,6 @@
                             break;
                     }
 
-                    // 繪製描邊（黑色）
                     ctx.fillStyle = 'black';
                     for (let dx = -1; dx <= 1; dx++) {
                         for (let dy = -1; dy <= 1; dy++) {
@@ -694,7 +688,6 @@
                         }
                     }
 
-                    // 繪製主文字
                     const colors = {
                         white: 'white',
                         black: 'black',
@@ -719,7 +712,6 @@
 
                 try {
                     if (this.images.length === 1) {
-                        // 單張直接下載
                         const processed = await this.processImage(this.images[0], settings);
                         const link = document.createElement('a');
                         link.href = processed;
@@ -729,7 +721,6 @@
                         status.innerHTML = '✓ 下載完成！';
                         status.className = 'status show success';
                     } else {
-                        // 多張打包 ZIP
                         const zip = new JSZip();
 
                         for (const img of this.images) {
@@ -765,10 +756,10 @@
                     img.onload = () => {
                         let cropHeight = 0;
 
-                        // 如果勾選，直接裁切頂部
                         const autoCrop = document.getElementById('autoCropTimestamp').checked;
                         if (autoCrop) {
-                            cropHeight = Math.max(50, Math.floor(img.height * 0.04));
+                            const cropPixels = parseInt(document.getElementById('cropPixels').value) || 0;
+                            cropHeight = cropPixels;
                         }
 
                         const finalWidth = img.width;
@@ -777,7 +768,6 @@
                         canvas.width = finalWidth;
                         canvas.height = finalHeight;
 
-                        // 繪製裁切後的圖片
                         ctx.drawImage(img, 0, cropHeight, finalWidth, finalHeight, 0, 0, finalWidth, finalHeight);
 
                         const text = this.formatTimestamp(settings.dt, settings.format);
@@ -843,7 +833,6 @@
             },
         };
 
-        // 初始化
         document.addEventListener('DOMContentLoaded', () => app.init());
     </script>
 </body>
